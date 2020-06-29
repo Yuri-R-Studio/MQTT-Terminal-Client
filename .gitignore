@@ -1,0 +1,6 @@
+.vs/
+/MqttClient/bin/
+/MqttClient/obj/
+/packages/
+/bin/*.pdb
+/bin/*.xml
