@@ -1,0 +1,26 @@
+<html>
+  <head>
+    <title>Loogger Configuration</title>
+    <style>
+      body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }
+    </style>
+  </head>
+  <body>
+  <h2>Logger Configuration</h2>
+  <br>
+    <form method=\"post\" enctype=\"text/plain\" action=\"/settings/\">
+	<h4>Board Settings</h4>
+		Name:<input type=\"text\" name=\"name\" value=\"%s\"><br><br><br>
+	<h4>Wifi Settings</h4>
+      SSID:	<input type=\"text\" name=\"ssid\" value=\"%s\"><br>
+	  Password: <input type=\"text\" name=\"password\" value=\"%s\"><br><br><br>
+	<h4>MQTT</h4>
+	  Host:<input type=\"text\" name=\"host\" value=\"%s\"><br>
+	  Port:<input type=\"text\" name=\"port\" value=\"%s\"><br>
+	  UserName:<input type=\"text\" name=\"user\" value=\"%s\"><br>
+	  Password:<input type=\"text\" name=\"password\" value=\"%s\"><br><br>
+	  <br><br>
+      <input type=\"submit\" value=\"Submit\">
+    </form>
+  </body>
+</html>

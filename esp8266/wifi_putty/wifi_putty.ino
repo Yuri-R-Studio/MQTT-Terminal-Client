@@ -5,12 +5,12 @@ const char* password = "spg579!@";
 long startTime = 0;
 char* topic = "S1000";
 char* server = "mqtt.eclipse.org";
-int secondsCounter = 0;
 String clientName = "PaulZ";
 WiFiClient wifiClient;
 void callback(char* topic, byte* payload, unsigned int length);
 PubSubClient client(server, 1883, callback, wifiClient);
 bool led = false;
+
 void callback(char* topic, byte* payload, unsigned int length) {
  
 }
