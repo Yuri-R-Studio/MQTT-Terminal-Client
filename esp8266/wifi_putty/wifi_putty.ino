@@ -31,6 +31,7 @@ char UserName[100] = "";
 char MqttPassword[100] = "";
 /* hostname for mDNS. Should work at least on windows. Try http://esp8266.local */
 const char *myHostname = "SPG Controls";
+int wifiCounter = 0;
 
 // DNS server
 const byte DNS_PORT = 53;
@@ -243,6 +244,7 @@ void handleSave() {
 
 void startWebServer()
 {
+  digitalWrite(LED_BUILTIN, LOW);
   /* You can remove the password parameter if you want the AP to be open. */
   WiFi.softAPConfig(apIP, apIP, netMsk);
   WiFi.softAP(softAP_ssid, softAP_password);
@@ -336,12 +338,24 @@ void setup() {
         Serial.println("Publish failed");
       }
     }
-    else if (i > 5) {
+    else if (i > 8) {
       Serial.println("MQTT connect failed");
       Serial.println("Will reset and try again...");
       abort();
     }
     delay(500);
+
+  if (digitalRead(BUTTON_PIN) == false)
+  {
+    Serial.print("Button pressed ");
+     Serial.println(wifiCounter);
+    if (wifiCounter > 1)
+      startWebServer();
+    else
+      wifiCounter++;
+  }
+  else
+    wifiCounter = 0;
   }
 }
 
@@ -382,7 +396,14 @@ void loop() {
 
   if (digitalRead(BUTTON_PIN) == false)
   {
-    Serial.println("Button Pressed");
+    Serial.print("Button pressed ");
+     Serial.println(wifiCounter);
+    if (wifiCounter > 5)
+      startWebServer();
+    else
+      wifiCounter++;
     delay(1000);
   }
+  else
+    wifiCounter = 0;
 }
