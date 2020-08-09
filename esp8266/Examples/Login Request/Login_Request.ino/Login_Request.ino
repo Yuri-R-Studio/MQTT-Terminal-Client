@@ -183,6 +183,14 @@ void connectWifi() {
   Serial.println(connRes);
 }
 
+void handleSave() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+  } else {
+    server.send(200, "text/plain", "POST body was:\n" + server.arg("ssid"));
+  }
+}
+
 void loop() {
   if (connect) {
     Serial.println("Connect requested");
