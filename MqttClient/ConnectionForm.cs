@@ -14,55 +14,63 @@ namespace MqttClient
         public ConnectionForm()
         {
             InitializeComponent();
-
-            btnConnect.Click += async (o, e) => {
-                await BtnConnect_ClickAsync(o, e);
-            };
         }
-
-        private async Task BtnConnect_ClickAsync(object sender, System.EventArgs e)
+        public String GetHost()
         {
             try
             {
-                btnConnect.Enabled = false;
-
-                var client = new MqttFactory().CreateMqttClient();
-
-                var options = new MqttClientOptionsBuilder()
-                    .WithTcpServer(txtHost.Text, int.Parse(txtPort.Text))
-                    .WithCredentials(txtUsername.Text, txtPassword.Text)
-                    .WithProtocolVersion(MqttProtocolVersion.V311)
-                    .Build();
-
-                var auth = await client.ConnectAsync(options);
-
-                if (auth.ResultCode != MqttClientConnectResultCode.Success)
-                {
-                    throw new Exception(auth.ResultCode.ToString());
-                }
-                else
-                {
-                    using (var feedFrm = new FeedForm(client))
-                    {
-                        try
-                        {
-                            Hide();
-                            feedFrm.ShowDialog(this);
-                        }
-                        catch(Exception ex)
-                        {
-                            this.Error(ex);
-                        }
-
-                        Close();
-                    }
-                }
+                return txtHost.Text;
             }
-            catch(Exception ex)
+            catch (Exception)
             {
-                this.Error(ex);
-                btnConnect.Enabled = true;
+
             }
+            return "";
         }
+
+        public int GetPort()
+        {
+            try
+            {
+                return int.Parse(txtPort.Text);
+            }
+            catch (Exception)
+            {
+
+            }
+            return 0;
+        }
+
+        public String GetUserName()
+        {
+            try
+            {
+                return txtUsername.Text;
+            }
+            catch (Exception)
+            {
+
+            }
+            return "";
+        }
+
+        public String GetPassword()
+        {
+            try
+            {
+                return txtPassword.Text;
+            }
+            catch (Exception)
+            {
+
+            }
+            return "";
+        }
+
+        private async void BtnConnect_ClickAsync(object sender, System.EventArgs e)
+        {
+            Hide();
+        }
+        
     }
 }

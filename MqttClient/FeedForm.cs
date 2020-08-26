@@ -1,6 +1,9 @@
 ﻿using MQTTnet;
 using MQTTnet.Client;
+using MQTTnet.Client.Connecting;
+using MQTTnet.Client.Options;
 using MQTTnet.Client.Subscribing;
+using MQTTnet.Formatter;
 using System;
 using System.Diagnostics;
 using System.Text;
@@ -12,26 +15,35 @@ namespace MqttClient
     public partial class FeedForm : Form
     {
         public IMqttClient Client { get; private set; }
-
-        public FeedForm(IMqttClient client)
+        public ConnectionForm connectionForm;
+        public AboutForm autoForm;
+        public FeedForm()
         {
-            Client = client;
             InitializeComponent();
 
-            txtTopic.Text = $"{client.Options.Credentials.Username}S1000";
-            
-            btnSubscribe.Click += async (o, e) 
-                => await BtnSubscribe_Click(o, e);
-
+            Client = new MqttFactory().CreateMqttClient();
+            connectionForm = new ConnectionForm();
+            autoForm = new AboutForm();
         }
 
-        private async Task BtnSubscribe_Click(object sender, EventArgs e)
+        private async void btnStartTerminal_Click(object sender, EventArgs e)
         {
             try
             {
-
                 if(btnSubscribe.Text == "Start")
                 {
+                    IMqttClientOptions options = new MqttClientOptionsBuilder()
+                        .WithTcpServer(connectionForm.GetHost(), connectionForm.GetPort())
+                        .WithCredentials(connectionForm.GetUserName(), connectionForm.GetPassword())
+                        .WithProtocolVersion(MqttProtocolVersion.V311)
+                        .Build();
+
+                    var auth = await Client.ConnectAsync(options);
+                    if (auth.ResultCode != MqttClientConnectResultCode.Success)
+                    {
+                        throw new Exception(auth.ResultCode.ToString());
+                    }
+
                     btnSubscribe.Text = "Stop";
                     txtTopic.Enabled = false;
 
@@ -55,6 +67,8 @@ namespace MqttClient
                                 Invoke((Action)(() =>
                                 {
                                     txtStream.AppendText($"{data}\n");
+                                    txtStream.ScrollToCaret();
+                                    txtStream.Refresh();
                                 }));
                             });
 
@@ -67,9 +81,9 @@ namespace MqttClient
                 {
                     btnSubscribe.Text = "Start";
                     txtTopic.Enabled = true;
-
+                    
                     var result = (await Client.UnsubscribeAsync(txtTopic.Text)).Items[0];
-
+                    await Client.DisconnectAsync();
                     switch (result.ReasonCode)
                     {
                         case MQTTnet.Client.Unsubscribing.MqttClientUnsubscribeResultCode.Success:
@@ -87,22 +101,6 @@ namespace MqttClient
                 this.Error(ex);
             }
         }
-
-        private async Task BtnPublish_Click(object sender, EventArgs e)
-        {
-            try
-            {
-
-
-
-            }
-            catch(Exception ex)
-            {
-                this.Error(ex);
-            }
-
-        }
-
         private bool ToggleStatus { get; set; }
 
         private async Task BtnToggle_Click(object sender, EventArgs e)
@@ -125,6 +123,16 @@ namespace MqttClient
         private void button1_Click(object sender, EventArgs e)
         {
             txtStream.Text = "";
+        }
+
+        private void btnServerSettings_Click(object sender, EventArgs e)
+        {
+            connectionForm.ShowDialog();
+        }
+
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            autoForm.ShowDialog();
         }
     }
 }
