@@ -1,6 +1,7 @@
 ﻿using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Connecting;
+using MQTTnet.Client.Disconnecting;
 using MQTTnet.Client.Options;
 using MQTTnet.Client.Subscribing;
 using MQTTnet.Formatter;
@@ -17,6 +18,8 @@ namespace MqttClient
         public IMqttClient Client { get; private set; }
         public ConnectionForm connectionForm;
         public AboutForm autoForm;
+        IMqttClientOptions options;
+        MqttClientAuthenticateResult auth;
         public FeedForm()
         {
             InitializeComponent();
@@ -32,13 +35,15 @@ namespace MqttClient
             {
                 if(btnSubscribe.Text == "Start")
                 {
-                    IMqttClientOptions options = new MqttClientOptionsBuilder()
+                    if (Client.IsConnected)
+                        await Client.DisconnectAsync();
+                    options = new MqttClientOptionsBuilder()
                         .WithTcpServer(connectionForm.GetHost(), connectionForm.GetPort())
                         .WithCredentials(connectionForm.GetUserName(), connectionForm.GetPassword())
                         .WithProtocolVersion(MqttProtocolVersion.V311)
                         .Build();
 
-                    var auth = await Client.ConnectAsync(options);
+                    auth = await Client.ConnectAsync(options);
                     if (auth.ResultCode != MqttClientConnectResultCode.Success)
                     {
                         throw new Exception(auth.ResultCode.ToString());
@@ -58,19 +63,12 @@ namespace MqttClient
                         case MqttClientSubscribeResultCode.GrantedQoS0:
                         case MqttClientSubscribeResultCode.GrantedQoS1:
                         case MqttClientSubscribeResultCode.GrantedQoS2:
-
-                            Client.UseApplicationMessageReceivedHandler(me =>
+                            Client.UseDisconnectedHandler(arg =>
                             {
-                                var msg = me.ApplicationMessage;
-                                var data = Encoding.UTF8.GetString(msg.Payload);
-
-                                Invoke((Action)(() =>
-                                {
-                                    txtStream.AppendText($"{data}\n");
-                                    txtStream.ScrollToCaret();
-                                    txtStream.Refresh();
-                                }));
+                                disconnectionHandler(arg);
                             });
+
+                            Client.UseApplicationMessageReceivedHandler((Action<MqttApplicationMessageReceivedEventArgs>)receiveHandler);
 
                             break;
                         default:
@@ -88,8 +86,8 @@ namespace MqttClient
                     {
                         case MQTTnet.Client.Unsubscribing.MqttClientUnsubscribeResultCode.Success:
                             break;
-                        default:
-                            throw new Exception(result.ReasonCode.ToString());
+                        //default:
+                            //throw new Exception(result.ReasonCode.ToString());
                     }
                 }
                 
@@ -133,6 +131,35 @@ namespace MqttClient
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
             autoForm.ShowDialog();
+        }
+
+        private void receiveHandler(MqttApplicationMessageReceivedEventArgs me)
+        {
+            var msg = me.ApplicationMessage;
+            var data = Encoding.UTF8.GetString(msg.Payload);
+
+            Invoke((Action)(() =>
+            {
+                txtStream.AppendText($"{data}\n");
+                txtStream.ScrollToCaret();
+                txtStream.Refresh();
+            }));
+        }
+        
+        private async void disconnectionHandler(MqttClientDisconnectedEventArgs arg)
+        {
+            if (Client.IsConnected)
+                await Client.DisconnectAsync();
+
+            if (btnSubscribe.Text == "Stop")
+            {
+                auth = await Client.ConnectAsync(options);
+                if (auth.ResultCode != MqttClientConnectResultCode.Success)
+                {
+                    throw new Exception(auth.ResultCode.ToString());
+                }
+                Client.UseApplicationMessageReceivedHandler((Action<MqttApplicationMessageReceivedEventArgs>)receiveHandler);
+            }
         }
     }
 }
