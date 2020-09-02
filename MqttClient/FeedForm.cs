@@ -6,8 +6,11 @@ using MQTTnet.Client.Options;
 using MQTTnet.Client.Subscribing;
 using MQTTnet.Formatter;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO.Ports;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -20,6 +23,12 @@ namespace MqttClient
         public AboutForm autoForm;
         IMqttClientOptions options;
         MqttClientAuthenticateResult auth;
+        private static Mutex mutex = new Mutex();
+        static bool serialClosed = false;
+        static bool uiLocked = false;
+
+        TabPage currentPage;
+
         public FeedForm()
         {
             InitializeComponent();
@@ -27,6 +36,10 @@ namespace MqttClient
             Client = new MqttFactory().CreateMqttClient();
             connectionForm = new ConnectionForm();
             autoForm = new AboutForm();
+            updatePortList();
+            cbSerialPort.Items.Clear();
+            cbSerialPort.Items.AddRange(currentSerialPortList.ToArray());
+            cbSerialPort.SelectedIndex = 0;
         }
 
         private async void btnStartTerminal_Click(object sender, EventArgs e)
@@ -51,7 +64,7 @@ namespace MqttClient
 
                     btnSubscribe.Text = "Stop";
                     txtTopic.Enabled = false;
-
+                    uiLocked = true;
                     var result = (await Client.SubscribeAsync(
                       new TopicFilterBuilder()
                       .WithTopic(txtTopic.Text)
@@ -78,8 +91,8 @@ namespace MqttClient
                 else
                 {
                     btnSubscribe.Text = "Start";
+                    uiLocked = false;
                     txtTopic.Enabled = true;
-                    
                     var result = (await Client.UnsubscribeAsync(txtTopic.Text)).Items[0];
                     await Client.DisconnectAsync();
                     switch (result.ReasonCode)
@@ -159,6 +172,118 @@ namespace MqttClient
                     throw new Exception(auth.ResultCode.ToString());
                 }
                 Client.UseApplicationMessageReceivedHandler((Action<MqttApplicationMessageReceivedEventArgs>)receiveHandler);
+            }
+        }
+
+        private List<string> currentSerialPortList;
+
+        private bool updatePortListRunning = false;
+        private void updatePortList()
+        {
+            try
+            {
+                if (updatePortListRunning == true)
+                    return;
+
+                updatePortListRunning = true;
+                List<string> requiredDeviceList = new List<string>(SerialPort.GetPortNames());
+                currentSerialPortList = requiredDeviceList;
+                updatePortListRunning = false;
+            }
+            catch
+            {
+            }
+        }
+
+        private void cbSerialPort_DropDown(object sender, EventArgs e)
+        {
+            int item = cbSerialPort.SelectedIndex;
+            updatePortList();
+            cbSerialPort.Items.Clear();
+            cbSerialPort.Items.AddRange(currentSerialPortList.ToArray());
+            try
+            {
+                cbSerialPort.SelectedIndex = item;
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private void btOpenSerial_Click(object sender, EventArgs e)
+        {
+            try
+            { 
+                if (btOpenSerial.Text == "Open")
+                {
+                    if (serialPort.IsOpen)
+                        return;
+                    serialPort.PortName = cbSerialPort.Text;
+                    serialPort.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
+                    serialPort.Open();
+                    btOpenSerial.Text = "Close";
+                    uiLocked = true;
+                    cbSerialPort.Enabled = false;
+                    serialClosed = false;
+                }
+                else
+                {
+                    serialClosed = true;
+                    if (serialPort.IsOpen)
+                    {
+                        serialPort.DataReceived -= new SerialDataReceivedEventHandler(DataReceivedHandler);
+                        serialPort.DiscardInBuffer();
+                        serialPort.DiscardOutBuffer();
+                    
+                        serialPort.Close();
+                    }
+                    btOpenSerial.Text = "Open";
+                    uiLocked = false;
+                    cbSerialPort.Enabled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error");
+            }
+        }
+
+        private void NowClose(object sender, EventArgs e)
+        {
+            btOpenSerial.Text = "Open";
+        }
+
+
+        private void DataReceivedHandler(
+                    object sender,
+                    SerialDataReceivedEventArgs e)
+        {
+            if (serialClosed)
+                return;
+            
+            SerialPort sp = (SerialPort)sender;
+            string indata = sp.ReadExisting();
+            BeginInvoke((Action)(() =>
+            {
+                if (serialClosed)
+                    return;
+                txtStream.AppendText($"{indata}");
+                txtStream.ScrollToCaret();
+                txtStream.Refresh();
+            }));
+            
+        }
+
+        private void tbConnections_Selected(object sender, TabControlEventArgs e)
+        {
+            if (uiLocked)
+            {
+                tbConnections.SelectedTab = currentPage;
+                //MessageBox.Show("You cannot use the tab you selected.");
+            }
+            else
+            {
+                currentPage = e.TabPage;
             }
         }
     }
