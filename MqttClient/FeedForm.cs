@@ -40,6 +40,7 @@ namespace MqttClient
             cbSerialPort.Items.Clear();
             cbSerialPort.Items.AddRange(currentSerialPortList.ToArray());
             cbSerialPort.SelectedIndex = 0;
+            currentPage = tbConnections.SelectedTab;
         }
 
         private async void btnStartTerminal_Click(object sender, EventArgs e)
@@ -48,6 +49,7 @@ namespace MqttClient
             {
                 if(btnSubscribe.Text == "Start")
                 {
+                    uiLocked = true;
                     if (Client.IsConnected)
                         await Client.DisconnectAsync();
                     options = new MqttClientOptionsBuilder()
@@ -64,7 +66,6 @@ namespace MqttClient
 
                     btnSubscribe.Text = "Stop";
                     txtTopic.Enabled = false;
-                    uiLocked = true;
                     var result = (await Client.SubscribeAsync(
                       new TopicFilterBuilder()
                       .WithTopic(txtTopic.Text)
@@ -91,7 +92,6 @@ namespace MqttClient
                 else
                 {
                     btnSubscribe.Text = "Start";
-                    uiLocked = false;
                     txtTopic.Enabled = true;
                     var result = (await Client.UnsubscribeAsync(txtTopic.Text)).Items[0];
                     await Client.DisconnectAsync();
@@ -102,6 +102,7 @@ namespace MqttClient
                         //default:
                             //throw new Exception(result.ReasonCode.ToString());
                     }
+                    uiLocked = false;
                 }
                 
             }
@@ -218,11 +219,11 @@ namespace MqttClient
                 {
                     if (serialPort.IsOpen)
                         return;
+                    uiLocked = true;
                     serialPort.PortName = cbSerialPort.Text;
                     serialPort.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
                     serialPort.Open();
                     btOpenSerial.Text = "Close";
-                    uiLocked = true;
                     cbSerialPort.Enabled = false;
                     serialClosed = false;
                 }
